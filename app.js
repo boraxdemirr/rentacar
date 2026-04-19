@@ -2,6 +2,9 @@ const express = require("express");
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
+app.get("/test", (req, res) => {
+    res.send("test tamam");
+});
 
 // -------------------- VERİLER --------------------
 
