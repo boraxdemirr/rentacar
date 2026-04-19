@@ -1,3 +1,4 @@
+console.log("BURASI GÜNCEL KOD");
 const express = require("express");
 const app = express();
 
