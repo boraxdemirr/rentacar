@@ -1,10 +1,130 @@
-console.log("BURASI GÜNCEL KOD");
+const sql = require("mssql");
+const ortakStil = `
+<style>
+    body {
+        margin: 0;
+        padding: 40px;
+        font-family: Arial, sans-serif;
+        background-image: url('/arkaplan.jpg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+    }
+    /* Menü çubuğunun (Sarı şerit) sabit kalması için */
+    .navbar {
+        background: #f1c40f;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+</style>
+`;
+
+const config = {
+    user: "nodeuser",
+    password: "1234",
+    server: "DESKTOP-V9Q55BF",
+    database: "RentACar",
+    port: 1433,
+    options: {
+        trustServerCertificate: true,
+        encrypt: false
+    },
+    connectionTimeout: 5000,
+    requestTimeout: 5000
+};
+
 const express = require("express");
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(__dirname));
 app.get("/test", (req, res) => {
     res.send("test tamam");
+});
+app.get("/arabalar", async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request().query("SELECT * FROM dbo.AracTablosu");
+
+        let kartlar = "";
+
+        result.recordset.forEach(arac => {
+            kartlar += `
+                <div style="
+                    background:white;
+                    padding:20px;
+                    border-radius:12px;
+                    width:260px;
+                    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+                    text-align:center;
+                ">
+                    <h2>${arac.marka} ${arac.model}</h2>
+                    <p><b>Model Yılı:</b> ${arac.modelYılı}</p>
+                    <p><b>Günlük Ücret:</b> ${arac.gunlukKiraUcreti} TL</p>
+                    <p><b>Yakıt Türü:</b> ${arac.yakitTuru}</p>
+                    <p><b>Araç Tipi:</b> ${arac.aracTipi}</p>
+                    <p><b>Durum:</b> ${arac.durum}</p>
+                    <p><b>Fotoğraf:</b> ${arac.fotografYolu}</p>
+                    <form method="POST" action="/arac-sil/${arac.aracID}">
+    <button type="submit">Sil</button>
+</form>
+                </div>
+            `;
+        });
+
+        res.send(`
+            <html>
+            <head>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 40px;
+                        font-family: Arial, sans-serif;
+                        background-image: url('/arkaplan.jpg');
+                        background-size: cover;
+                        background-position: center;
+                        background-attachment: fixed;
+                        background-repeat: no-repeat;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1 style="text-align:center; color:white; text-shadow: 2px 2px 4px #000; margin-bottom:30px;">Araç Listesi</h1>
+                <div style="display:flex; gap:20px; flex-wrap:wrap; justify-content:center;">
+                    ${kartlar}
+                </div>
+            </body>
+            </html>
+        `);
+    } catch (err) {
+        console.log(err);
+        res.send("Hata var");
+    }
+});
+app.get("/arac-ekle", (req, res) => {
+    res.send(`
+        <h1>Araç Ekle</h1>
+
+        <form method="POST" action="/arac-ekle">
+            <input name="marka" placeholder="Marka" /><br><br>
+            <input name="model" placeholder="Model" /><br><br>
+            <input name="modelYılı" placeholder="Model Yılı" /><br><br>
+            <input name="gunlukKiraUcreti" placeholder="Günlük Ücret" /><br><br>
+            <input name="yakitTuru" placeholder="Yakıt Türü" /><br><br>
+            <input name="aracTipi" placeholder="Araç Tipi" /><br><br>
+            <input name="durum" placeholder="Durum" /><br><br>
+            <input name="fotografYolu" placeholder="Fotoğraf" /><br><br>
+
+            <button type="submit">Kaydet</button>
+        </form>
+    `);
 });
 
 // -------------------- VERİLER --------------------
@@ -791,11 +911,126 @@ app.get("/kiralamalar", (req, res) => {
         `
     ));
 });
+// -------------------- ODEME SAYFASI --------------------
+app.get("/odeme", async (req, res) => {
+    const pool = await sql.connect(config);
+
+    const result = await pool.request().query(`
+        SELECT k.kiralamaID, a.marka, a.model, k.toplamUcret
+        FROM KiralamaTablosu k
+        JOIN AracTablosu a ON k.aracID = a.aracID
+    `);
+
+    let liste = "";
+
+    result.recordset.forEach(k => {
+        liste += `
+            <div style="background:white; padding:15px; margin:10px;">
+                <h3>${k.marka} ${k.model}</h3>
+                <p>Ücret: ${k.toplamUcret} TL</p>
+
+                <form method="POST" action="/odeme-yap">
+                    <input type="hidden" name="kiralamaID" value="${k.kiralamaID}">
+                    <input type="hidden" name="odenenTutar" value="${k.toplamUcret}">
+
+                    <select name="odemeTuru">
+                        <option>Kart</option>
+                        <option>Nakit</option>
+                    </select>
+
+                    <button type="submit">Öde</button>
+                </form>
+            </div>
+        `;
+    });
+
+    res.send("<h1>Ödeme</h1>" + liste);
+});
+
+
+// -------------------- ODEME KAYDET --------------------
+app.post("/odeme-yap", async (req, res) => {
+    const { kiralamaID, odenenTutar, odemeTuru } = req.body;
+
+    const pool = await sql.connect(config);
+
+    await pool.request()
+        .input("kiralamaID", kiralamaID)
+        .input("odenenTutar", odenenTutar)
+        .input("gunSayisi", 1)
+        .input("odemeTuru", odemeTuru)
+        .input("odemeTarihi", new Date())
+        .query(`
+            INSERT INTO OdemeTablosu
+            (kiralamaID, odenenTutar, gunSayisi, odemeTuru, odemeTarihi)
+            VALUES
+            (@kiralamaID, @odenenTutar, @gunSayisi, @odemeTuru, @odemeTarihi)
+        `);
+
+    res.send("Ödeme tamam ✅");
+});
 
 // -------------------- SERVER --------------------
+app.post("/arac-ekle", async (req, res) => {
+    try {
+        const { marka, model, modelYılı, gunlukKiraUcreti, yakitTuru, aracTipi, durum, fotografYolu } = req.body;
+
+        const pool = await sql.connect(config);
+
+        await pool.request()
+            .input("marka", marka)
+            .input("model", model)
+            .input("modelYılı", modelYılı)
+            .input("gunlukKiraUcreti", gunlukKiraUcreti)
+            .input("yakitTuru", yakitTuru)
+            .input("aracTipi", aracTipi)
+            .input("durum", durum)
+            .input("fotografYolu", fotografYolu)
+            .query(`
+                INSERT INTO dbo.AracTablosu
+                (marka, model, modelYılı, gunlukKiraUcreti, yakitTuru, aracTipi, durum, fotografYolu)
+                VALUES
+                (@marka, @model, @modelYılı, @gunlukKiraUcreti, @yakitTuru, @aracTipi, @durum, @fotografYolu)
+            `);
+
+        res.send("Araç eklendi 👍");
+    } catch (err) {
+        console.log(err);
+        res.send("Hata oluştu");
+    }
+});
+app.post("/arac-sil/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const pool = await sql.connect(config);
+
+        await pool.request()
+            .input("id", sql.Int, id)
+            .query("DELETE FROM dbo.AracTablosu WHERE aracID = @id");
+
+        res.redirect("/arabalar");
+    } catch (err) {
+        console.log(err);
+        res.send("Silme hatası");
+    }
+});
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log("Server çalışıyor");
+
+    // 🔥 VERİTABANI BAĞLANTISI BURADA
+    sql.connect(config)
+        .then(pool => {
+            console.log("✅ Veritabanına bağlandı");
+
+            return pool.request().query("SELECT 1 AS test");
+        })
+        .then(result => {
+            console.log(result.recordset);
+        })
+        .catch(err => {
+            console.log("❌ Hata:", err);
+        });
 });
