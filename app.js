@@ -1,16 +1,16 @@
 const sql = require("mssql");
 const ortakStil = `
 <style>
-    body {
-        margin: 0;
-        padding: 40px;
-        font-family: Arial, sans-serif;
-        background-image: url('/arkaplan.jpg');
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-repeat: no-repeat;
-    }
+   body {
+    margin: 0;
+    padding: 40px;
+    font-family: Arial, sans-serif;
+    background-image: url('/gercekresim.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
     /* Menü çubuğunun (Sarı şerit) sabit kalması için */
     .navbar {
         background: #f1c40f;
@@ -42,6 +42,7 @@ const config = {
 
 const express = require("express");
 const app = express();
+app.use(express.static("public"));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
@@ -175,7 +176,15 @@ function pageTop(title, rightLinks = "") {
 
 function basePage(title, content, rightLinks = "") {
     return `
-        <body style="margin:0; font-family:Arial; background-color:#fef9e7;">
+        <body style="
+    margin:0;
+    font-family:Arial;
+    background-image: url('/gercekresim.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+">
             ${pageTop(title, rightLinks)}
             ${content}
         </body>
@@ -184,44 +193,73 @@ function basePage(title, content, rightLinks = "") {
 
 // -------------------- ANA SAYFA --------------------
 
-app.get("/", (req, res) => {
-    res.send(basePage(
-        "Rent A Car",
-        `
+app.get("/", async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request().query(`
+            SELECT TOP 3 * FROM dbo.AracTablosu
+        `);
+
+        let kartlar = `
         <div style="
             height:85vh;
             display:flex;
             justify-content:center;
             align-items:center;
-            text-align:center;
+            gap:25px;
+            flex-wrap:wrap;
         ">
-            <div>
-                <h1>ARAYÜZ DÜZENLENECEKTİR...</h1>
-                <p>Rent A Car sistemine hoş geldiniz.</p>
-            </div>
-        </div>
-        `,
-        `
-        <a href="/" style="margin-right:20px; text-decoration:none; color:black;">Ana Sayfa</a>
-        <a href="/araclar" style="margin-right:20px; text-decoration:none; color:black;">Araçlar</a>
-        <a href="/musteriler" style="margin-right:20px; text-decoration:none; color:black;">Müşteriler</a>
-        <a href="/kiralamalar" style="margin-right:20px; text-decoration:none; color:black;">Kiralamalar</a>
-        <a href="/login"
-           style="
-               text-decoration:none;
-               color:black;
-               font-weight:bold;
-               background:white;
-               padding:8px 14px;
-               border-radius:6px;
-               cursor:pointer;
-           "
-           onmouseover="this.style.color='#007bff'"
-           onmouseout="this.style.color='black'">
-           Giriş Yap
-        </a>
-        `
-    ));
+        `;
+
+        result.recordset.forEach(arac => {
+            kartlar += `
+                <div style="
+                    background:rgba(0,0,0,0.75);
+                    color:white;
+                    width:260px;
+                    padding:20px;
+                    border-radius:16px;
+                    text-align:center;
+                    box-shadow:0 4px 10px rgba(0,0,0,0.4);
+                ">
+                    <img src="/${arac.fotografYolu}" style="
+                        width:100%;
+                        height:140px;
+                        object-fit:contain;
+                        background:white;
+                        border-radius:8px;
+                    ">
+
+                    <h2>${arac.marka} ${arac.model}</h2>
+                    <p>Model: ${arac.modelYili || arac.modelYılı}</p>
+                    <p>Günlük: ${arac.gunlukKiraUcreti} TL</p>
+
+                    <a href="/arabalar" style="
+                        color:black;
+                        background:#f4d35e;
+                        padding:8px 14px;
+                        border-radius:8px;
+                        text-decoration:none;
+                        font-weight:bold;
+                    ">Detay</a>
+                </div>
+            `;
+        });
+
+        kartlar += `</div>`;
+
+        res.send(basePage("Rent A Car", kartlar, `
+            <a href="/" style="margin-right:20px; text-decoration:none; color:black;">Ana Sayfa</a>
+            <a href="/arabalar" style="margin-right:20px; text-decoration:none; color:black;">Araçlar</a>
+            <a href="/musteriler" style="margin-right:20px; text-decoration:none; color:black;">Müşteriler</a>
+            <a href="/kiralamalar" style="margin-right:20px; text-decoration:none; color:black;">Kiralamalar</a>
+            <a href="/login" style="text-decoration:none; color:black; font-weight:bold; background:white; padding:8px 14px; border-radius:6px;">Giriş Yap</a>
+        `));
+
+    } catch (err) {
+        console.log(err);
+        res.send("Ana sayfa hatası");
+    }
 });
 
 // -------------------- LOGIN --------------------
