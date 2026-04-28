@@ -193,73 +193,49 @@ function basePage(title, content, rightLinks = "") {
 
 // -------------------- ANA SAYFA --------------------
 
-app.get("/", async (req, res) => {
-    try {
-        const pool = await sql.connect(config);
-        const result = await pool.request().query(`
-            SELECT TOP 3 * FROM dbo.AracTablosu
-        `);
+app.get("/", (req, res) => {
+    const kartlar = `
+    <div style="
+        height:85vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        gap:25px;
+        flex-wrap:wrap;
+    ">
+        <div style="background:rgba(0,0,0,0.75); color:white; width:260px; padding:20px; border-radius:16px; text-align:center;">
+            <img src="/clio.png" style="width:100%; height:140px; object-fit:contain; background:white; border-radius:8px;">
+            <h2>Renault Clio</h2>
+            <p>Model: 2022</p>
+            <p>Günlük: 1500 TL</p>
+            <a href="/arabalar" style="color:black; background:#f4d35e; padding:8px 14px; border-radius:8px; text-decoration:none; font-weight:bold;">Detay</a>
+        </div>
 
-        let kartlar = `
-        <div style="
-            height:85vh;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            gap:25px;
-            flex-wrap:wrap;
-        ">
-        `;
+        <div style="background:rgba(0,0,0,0.75); color:white; width:260px; padding:20px; border-radius:16px; text-align:center;">
+            <img src="/egea.png" style="width:100%; height:140px; object-fit:contain; background:white; border-radius:8px;">
+            <h2>Fiat Egea</h2>
+            <p>Model: 2023</p>
+            <p>Günlük: 1700 TL</p>
+            <a href="/arabalar" style="color:black; background:#f4d35e; padding:8px 14px; border-radius:8px; text-decoration:none; font-weight:bold;">Detay</a>
+        </div>
 
-        result.recordset.forEach(arac => {
-            kartlar += `
-                <div style="
-                    background:rgba(0,0,0,0.75);
-                    color:white;
-                    width:260px;
-                    padding:20px;
-                    border-radius:16px;
-                    text-align:center;
-                    box-shadow:0 4px 10px rgba(0,0,0,0.4);
-                ">
-                    <img src="/${arac.fotografYolu}" style="
-                        width:100%;
-                        height:140px;
-                        object-fit:contain;
-                        background:white;
-                        border-radius:8px;
-                    ">
+        <div style="background:rgba(0,0,0,0.75); color:white; width:260px; padding:20px; border-radius:16px; text-align:center;">
+            <img src="/c4.png" style="width:100%; height:140px; object-fit:contain; background:white; border-radius:8px;">
+            <h2>Citroen C4</h2>
+            <p>Model: 2023</p>
+            <p>Günlük: 2000 TL</p>
+            <a href="/arabalar" style="color:black; background:#f4d35e; padding:8px 14px; border-radius:8px; text-decoration:none; font-weight:bold;">Detay</a>
+        </div>
+    </div>
+    `;
 
-                    <h2>${arac.marka} ${arac.model}</h2>
-                    <p>Model: ${arac.modelYili || arac.modelYılı}</p>
-                    <p>Günlük: ${arac.gunlukKiraUcreti} TL</p>
-
-                    <a href="/arabalar" style="
-                        color:black;
-                        background:#f4d35e;
-                        padding:8px 14px;
-                        border-radius:8px;
-                        text-decoration:none;
-                        font-weight:bold;
-                    ">Detay</a>
-                </div>
-            `;
-        });
-
-        kartlar += `</div>`;
-
-        res.send(basePage("Rent A Car", kartlar, `
-            <a href="/" style="margin-right:20px; text-decoration:none; color:black;">Ana Sayfa</a>
-            <a href="/arabalar" style="margin-right:20px; text-decoration:none; color:black;">Araçlar</a>
-            <a href="/musteriler" style="margin-right:20px; text-decoration:none; color:black;">Müşteriler</a>
-            <a href="/kiralamalar" style="margin-right:20px; text-decoration:none; color:black;">Kiralamalar</a>
-            <a href="/login" style="text-decoration:none; color:black; font-weight:bold; background:white; padding:8px 14px; border-radius:6px;">Giriş Yap</a>
-        `));
-
-    } catch (err) {
-        console.log(err);
-        res.send("Ana sayfa hatası");
-    }
+    res.send(basePage("Rent A Car", kartlar, `
+        <a href="/" style="margin-right:20px; text-decoration:none; color:black;">Ana Sayfa</a>
+        <a href="/arabalar" style="margin-right:20px; text-decoration:none; color:black;">Araçlar</a>
+        <a href="/musteriler" style="margin-right:20px; text-decoration:none; color:black;">Müşteriler</a>
+        <a href="/kiralamalar" style="margin-right:20px; text-decoration:none; color:black;">Kiralamalar</a>
+        <a href="/login" style="text-decoration:none; color:black; font-weight:bold; background:white; padding:8px 14px; border-radius:6px;">Giriş Yap</a>
+    `));
 });
 
 // -------------------- LOGIN --------------------
